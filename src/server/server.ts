@@ -3,6 +3,7 @@ import { Server as HttpServer } from "http";
 import express, { Application, Router } from "express";
 import { join } from "path";
 import { Logger } from "pino";
+import { createNodeMiddleware as createWebhooksMiddleware } from "@octokit/webhooks";
 
 import { getLog } from "../helpers/get-log";
 import { getLoggingMiddleware } from "./logging-middleware";
@@ -10,7 +11,6 @@ import { createWebhookProxy } from "../helpers/webhook-proxy";
 import { VERSION } from "../version";
 import { ApplicationFunction, ServerOptions } from "../types";
 import { Probot } from "../";
-import { load } from "../load";
 
 type State = {
   httpServer?: HttpServer;
@@ -50,7 +50,9 @@ export class Server {
     );
     this.expressApp.use(
       this.state.webhookPath,
-      this.probotApp.webhooks.middleware
+      createWebhooksMiddleware(this.probotApp.webhooks, {
+        path: "/",
+      })
     );
 
     this.expressApp.set("view engine", "hbs");
@@ -59,7 +61,9 @@ export class Server {
   }
 
   public async load(appFn: ApplicationFunction) {
-    await load(this.probotApp, this.router(), appFn);
+    await appFn(this.probotApp, {
+      getRouter: (path) => this.router(path),
+    });
   }
 
   public async start() {

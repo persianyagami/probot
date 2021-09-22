@@ -3,7 +3,7 @@ import Stream from "stream";
 import { NextFunction, Request, Response } from "express";
 import request from "supertest";
 import pino from "pino";
-import { sign } from "@octokit/webhooks";
+import { sign } from "@octokit/webhooks-methods";
 import getPort from "get-port";
 
 import { Server, Probot } from "../src";
@@ -32,9 +32,15 @@ describe("Server", () => {
 
   beforeEach(async () => {
     output = [];
+    const log = pino(streamLogsToOutput);
     server = new Server({
-      Probot: Probot.defaults({ appId, privateKey, secret: "secret" }),
-      log: pino(streamLogsToOutput),
+      Probot: Probot.defaults({
+        appId,
+        privateKey,
+        secret: "secret",
+        log: log.child({ name: "probot" }),
+      }),
+      log: log.child({ name: "server" }),
     });
 
     // Error handler to avoid printing logs
@@ -71,7 +77,7 @@ describe("Server", () => {
         port: await getPort(),
       });
 
-      await server.load(({ app }) => {
+      await server.load((app) => {
         app.on("push", (event) => {
           expect(event.name).toEqual("push");
         });
@@ -83,11 +89,26 @@ describe("Server", () => {
         .post("/")
         .send(dataString)
         .set("x-github-event", "push")
-        .set("x-hub-signature", sign("secret", dataString))
+        .set("x-hub-signature-256", await sign("secret", dataString))
         .set("x-github-delivery", "3sw4d5f6g7h8");
 
       expect(output.length).toEqual(1);
       expect(output[0].msg).toContain("POST / 200 -");
+    });
+
+    test("respond with a friendly error when x-hub-signature-256 is missing", async () => {
+      await server.load(() => {});
+
+      await request(server.expressApp)
+        .post("/")
+        .send(JSON.stringify(pushEvent))
+        .set("x-github-event", "push")
+        // Note: 'x-hub-signature-256' is missing
+        .set("x-github-delivery", "3sw4d5f6g7h8")
+        .expect(
+          400,
+          '{"error":"Required headers missing: x-hub-signature-256"}'
+        );
     });
   });
 
@@ -203,14 +224,6 @@ describe("Server", () => {
     it("responds with 500 on error", async () => {
       server.expressApp.get("/boom", () => {
         throw new Error("boom");
-      });
-
-      await request(server.expressApp).get("/boom").expect(500);
-    });
-
-    it("responds with 500 on async error", async () => {
-      server.expressApp.get("/boom", () => {
-        return Promise.reject(new Error("boom"));
       });
 
       await request(server.expressApp).get("/boom").expect(500);

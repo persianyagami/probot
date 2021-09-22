@@ -2,7 +2,7 @@ import Stream from "stream";
 import path = require("path");
 
 import request from "supertest";
-import { sign } from "@octokit/webhooks";
+import { sign } from "@octokit/webhooks-methods";
 
 import { Probot, run, Server } from "../src";
 
@@ -22,7 +22,6 @@ describe("run", () => {
     // Clear log output
     output = [];
     env = {
-      DISABLE_WEBHOOK_EVENT_CHECK: "true",
       APP_ID: "1",
       PRIVATE_KEY_PATH: path.join(
         __dirname,
@@ -50,7 +49,13 @@ describe("run", () => {
     });
 
     it("runs with an array of strings", async () => {
-      server = await run(["node", "probot-run", "./test/fixtures/example.js"]);
+      server = await run([
+        "node",
+        "probot-run",
+        "./test/fixtures/example.js",
+        "--log-level",
+        "fatal",
+      ]);
       await server.stop();
     });
 
@@ -61,7 +66,7 @@ describe("run", () => {
 
       return new Promise(async (resolve) => {
         server = await run(
-          ({ app }: { app: Probot }) => {
+          (app: Probot) => {
             initialized = true;
           },
           { env }
@@ -75,16 +80,18 @@ describe("run", () => {
   });
 
   describe("webhooks", () => {
+    const pushEvent = require("./fixtures/webhook/push.json");
+
     it("POST /", async () => {
       server = await run(() => {}, { env });
 
-      const dataString = require("./fixtures/webhook/push.json");
+      const dataString = JSON.stringify(pushEvent);
 
       await request(server.expressApp)
         .post("/")
         .send(dataString)
         .set("x-github-event", "push")
-        .set("x-hub-signature", sign("secret", dataString))
+        .set("x-hub-signature-256", await sign("secret", dataString))
         .set("x-github-delivery", "123")
         .expect(200);
 
@@ -95,22 +102,23 @@ describe("run", () => {
       server = await run(() => {}, {
         env: {
           ...env,
-          WEBHOOK_SECRET: "secret",
           WEBHOOK_PATH: "/custom-webhook",
         },
       });
 
-      const dataString = require("./fixtures/webhook/push.json");
+      const dataString = JSON.stringify(pushEvent);
 
-      await request(server.expressApp)
-        .post("/custom-webhook")
-        .send(dataString)
-        .set("x-github-event", "push")
-        .set("x-hub-signature", sign("secret", dataString))
-        .set("x-github-delivery", "123")
-        .expect(200);
-
-      await server.stop();
+      try {
+        await request(server.expressApp)
+          .post("/custom-webhook")
+          .send(dataString)
+          .set("x-github-event", "push")
+          .set("x-hub-signature-256", await sign("secret", dataString))
+          .set("x-github-delivery", "123")
+          .expect(200);
+      } finally {
+        await server.stop();
+      }
     });
   });
 });

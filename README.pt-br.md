@@ -4,14 +4,14 @@
 
 > 🤖 Um framework para criar aplicativos do GitHub para automatizar e melhorar seu fluxo de trabalho
 
-Se você já pensou, "não seria legal se o GitHub pudesse..."; Eu vou parar você aí mesmo. A maioria dos recursos pode realmente ser adicionada via [GitHub Apps](https://developer.github.com/apps/), que estende o GitHub e pode ser instalado diretamente em organizações e contas de usuários e com acesso a repositórios específicos. Eles vêm com permissões granulares e webhooks integrados. Os aplicativos são atores de primeira classe no GitHub.
+Se você já pensou, "não seria legal se o GitHub pudesse..."; Eu vou parar você aí mesmo. A maioria dos recursos pode realmente ser adicionada via [GitHub Apps](https://docs.github.com/apps/), que estende o GitHub e pode ser instalado diretamente em organizações e contas de usuários e com acesso a repositórios específicos. Eles vêm com permissões granulares e webhooks integrados. Os aplicativos são atores de primeira classe no GitHub.
 
 ## Como funciona
 
-**Probot é um framework para construir [GitHub Apps](http://developer.github.com/apps) em [Node.js](https://nodejs.org/)**, escrito em [TypeScript](https://www.typescriptlang.org/). O GitHub Apps pode ouvir eventos de webhook enviados por um repositório ou organização. O Probot usa seu emissor de evento interno para executar ações com base nesses eventos. Um aplicativo Probot simples pode ter esta aparência:
+**Probot é um framework para construir [GitHub Apps](https://docs.github.com/apps) em [Node.js](https://nodejs.org/)**, escrito em [TypeScript](https://www.typescriptlang.org/). O GitHub Apps pode ouvir eventos de webhook enviados por um repositório ou organização. O Probot usa seu emissor de evento interno para executar ações com base nesses eventos. Um aplicativo Probot simples pode ter esta aparência:
 
 ```js
-module.exports = ({ app }) => {
+module.exports = (app) => {
   app.on("issues.opened", async (context) => {
     const issueComment = context.issue({
       body: "Obrigado por abrir esta issue!",

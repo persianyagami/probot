@@ -1,4 +1,3 @@
-import { Deprecation } from "deprecation";
 import { LogLevel, Options as PinoOptions } from "@probot/pino";
 import { getPrivateKey } from "@probot/get-private-key";
 
@@ -20,6 +19,7 @@ const DEFAULTS = {
   LOG_FORMAT: "",
   LOG_LEVEL: "warn",
   LOG_LEVEL_IN_STRING: "",
+  LOG_MESSAGE_KEY: "msg",
   REDIS_URL: "",
   SENTRY_DSN: "",
 };
@@ -33,13 +33,11 @@ const DEFAULTS = {
  * @param overrides overwrites defaults and according environment variables
  * @param env defaults to process.env
  */
-export function createProbot(options: Options | CreateProbotOptions = {}) {
-  if (isDeprecated(options)) {
-    return deprecatedCreateProbot(options);
-  }
-
-  const { overrides = {}, defaults = {}, env = process.env } = options;
-
+export function createProbot({
+  overrides = {},
+  defaults = {},
+  env = process.env,
+}: CreateProbotOptions = {}) {
   const privateKey = getPrivateKey({ env });
   const envWithDefaults = { ...DEFAULTS, ...env };
 
@@ -66,6 +64,7 @@ export function createProbot(options: Options | CreateProbotOptions = {}) {
     level: probotOptions.logLevel,
     logFormat: envWithDefaults.LOG_FORMAT as PinoOptions["logFormat"],
     logLevelInString: envWithDefaults.LOG_LEVEL_IN_STRING === "true",
+    logMessageKey: envWithDefaults.LOG_MESSAGE_KEY,
     sentryDsn: envWithDefaults.SENTRY_DSN,
   };
 
@@ -75,38 +74,4 @@ export function createProbot(options: Options | CreateProbotOptions = {}) {
     log: log.child({ name: "probot" }),
     ...probotOptions,
   });
-}
-
-function isDeprecated(
-  options: Options | CreateProbotOptions
-): options is Options {
-  const keys = Object.keys(options);
-
-  return (
-    keys.length > 0 &&
-    !keys.includes("overrides") &&
-    !keys.includes("defaults") &&
-    !keys.includes("env")
-  );
-}
-
-function deprecatedCreateProbot(options: Options) {
-  options.log =
-    options.log ||
-    getLog({
-      level: process.env.LOG_LEVEL as LogLevel,
-      logFormat: process.env.LOG_FORMAT as PinoOptions["logFormat"],
-      logLevelInString: process.env.LOG_LEVEL_IN_STRING === "true",
-      sentryDsn: process.env.SENTRY_DSN,
-    });
-
-  const deprecatedKey = Object.keys(options).join(", ");
-  options.log.warn(
-    new Deprecation(
-      `[probot] "createProbot({ ${deprecatedKey} })" is deprecated, use "new Probot(options)" instead.
-      
-"createProbot(options)" will be repurposed with probot v11 and only accept {defaults, overrides, env} option keys`
-    )
-  );
-  return new Probot(options);
 }

@@ -1,4 +1,3 @@
-import express from "express";
 import bodyParser from "body-parser";
 import { exec } from "child_process";
 import { Request, Response } from "express";
@@ -6,28 +5,33 @@ import updateDotenv from "update-dotenv";
 
 import { Probot } from "../probot";
 import { ManifestCreation } from "../manifest-creation";
-
 import { getLoggingMiddleware } from "../server/logging-middleware";
+import { ApplicationFunctionOptions } from "../types";
 
 export const setupAppFactory = (
   host: string | undefined,
   port: number | undefined
 ) =>
-  async function setupApp({
-    app,
-    getRouter,
-  }: {
-    app: Probot;
-    getRouter: () => express.Router;
-  }) {
+  async function setupApp(
+    app: Probot,
+    { getRouter }: ApplicationFunctionOptions
+  ) {
     const setup: ManifestCreation = new ManifestCreation();
 
     // If not on Glitch or Production, create a smee URL
     if (
       process.env.NODE_ENV !== "production" &&
-      !(process.env.PROJECT_DOMAIN || process.env.WEBHOOK_PROXY_URL)
+      !(
+        process.env.PROJECT_DOMAIN ||
+        process.env.WEBHOOK_PROXY_URL ||
+        process.env.NO_SMEE_SETUP === "true"
+      )
     ) {
       await setup.createWebhookChannel();
+    }
+
+    if (!getRouter) {
+      throw new Error("getRouter is required to use the setup app");
     }
 
     const route = getRouter();

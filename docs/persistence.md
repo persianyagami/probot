@@ -1,10 +1,24 @@
 ---
 next: docs/best-practices.md
+title: Persistence
 ---
 
 # Persistence
 
 Generally speaking, adding database storage or persistence to your Probot App will greatly complicate your life. It's perfectly doable, but for most use-cases you'll be able to manage relevant data within GitHub issues, pull requests and your app's configuration file.
+
+**Contents:**
+
+<!-- toc -->
+
+- [Using GitHub for persistent data](#using-github-for-persistent-data)
+- [Using a Database](#using-a-database)
+  - [MongoDB (with Mongoose)](#mongodb-with-mongoose)
+  - [MySQL](#mysql)
+  - [Postgres](#postgres)
+  - [Firebase](#firebase)
+
+<!-- tocstop -->
 
 ## Using GitHub for persistent data
 
@@ -63,7 +77,7 @@ mongoose.connect(mongoUri, {
 // Register the mongoose model
 const People = require("./PeopleSchema");
 
-module.exports = ({ app }) => {
+module.exports = (app) => {
   app.on("issues.opened", async (context) => {
     // Find all the people in the database
     const people = await People.find().exec();
@@ -104,7 +118,7 @@ module.exports = connection;
 const { sql } = require("@databases/mysql");
 const connection = require("./connection");
 
-module.exports = ({ app }) => {
+module.exports = (app) => {
   app.on("issues.opened", async (context) => {
     // Find all the people in the database
     const people = await connection.query(sql`SELECT * FROM people`);
@@ -145,7 +159,7 @@ module.exports = connection;
 const { sql } = require("@databases/pg");
 const connection = require("./connection");
 
-module.exports = ({ app }) => {
+module.exports = (app) => {
   app.on("issues.opened", async (context) => {
     // Find all the people in the database
     const people = await connection.query(sql`SELECT * FROM people`);
@@ -186,7 +200,7 @@ firebase.initializeApp(config);
 
 const database = firebase.database();
 
-module.exports = ({ app }) => {
+module.exports = (app) => {
   app.on("issues.opened", async (context) => {
     // Find all the people in the database
     const people = await database
