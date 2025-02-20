@@ -1,24 +1,17 @@
-import { RequestListener } from "http";
+import type { RequestListener } from "http";
+import { createNodeMiddleware as createWebhooksMiddleware } from "@octokit/webhooks";
 
-import { Deprecation } from "deprecation";
-
-import { ApplicationFunction } from "./types";
-import { MiddlewareOptions } from "./types";
+import type { ApplicationFunction, MiddlewareOptions } from "./types.js";
+import { defaultWebhooksPath } from "./server/server.js";
+import { createProbot } from "./create-probot.js";
 
 export function createNodeMiddleware(
   appFn: ApplicationFunction,
-  { probot, Probot }: MiddlewareOptions
+  { probot = createProbot(), webhooksPath } = {} as MiddlewareOptions,
 ): RequestListener {
-  if (Probot) {
-    probot = new Probot();
-    probot.log.warn(
-      new Deprecation(
-        `"createNodeMiddleware(app, { Probot })" is deprecated. Use "createNodeMiddleware(app, { probot })" instead`
-      )
-    );
-  }
-
   probot.load(appFn);
 
-  return probot.webhooks.middleware;
+  return createWebhooksMiddleware(probot.webhooks, {
+    path: webhooksPath || probot.webhookPath || defaultWebhooksPath,
+  });
 }
